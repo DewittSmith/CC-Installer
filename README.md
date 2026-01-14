@@ -1,2 +1,1 @@
-# CC-Installer
-Installer for ComputerCraft
+Usage: installer.lua <repo_owner> <repo_name> [ref]
