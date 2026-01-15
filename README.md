@@ -1,4 +1,4 @@
-# CC-Installer
+# ghpm
 
 A Lua script for ComputerCraft that recursively downloads and installs Lua files from a GitHub repository onto your computer.
 
@@ -70,7 +70,3 @@ The script fetches the repository contents from GitHub's API, recursively traver
 
 1. Place `installer.lua` on your ComputerCraft computer.
 2. Run the script as shown in the Usage section.
-
-## License
-
-This script is provided as-is. Check the license of the repositories you download.
