@@ -24,7 +24,7 @@ local function load_package(inputs)
     }
 
     local url = string.format(RAW_API, inputs.owner, inputs.name, inputs.ref or "main", "package.json")
-    print(url)
+    print("Loading package metadata from " .. url .. "...")
 
     local success, metadata = pcall(read, url)
     if not success then return result end
