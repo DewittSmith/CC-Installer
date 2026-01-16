@@ -9,10 +9,11 @@ local function read_file(url)
     return content
 end
 
-local registry = read_file(GH_REGISTRY_URL)
-registry = assert(loadstring(registry))()
-
+print("Loading sol package manager...")
 local sol = read_file(SOL_URL)
 sol = assert(loadstring(sol))()
+
+print("Loading github registry...")
+sol.add_registry(GH_REGISTRY_URL)
 
 sol.install("https://github.com/DewittSmith/sol", registry)

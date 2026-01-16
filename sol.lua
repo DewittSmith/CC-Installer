@@ -1,9 +1,5 @@
 local REGISTRIES_PATH = "registries"
-
 local CONFIG_FILE = "sol.config"
-local HEADERS = {
-    ["User-Agent"] = "Sol-Package-Manager"
-}
 
 local function filename_without_extension(path)
     return path:match("([^/]+)%.%w+$") or path
@@ -17,11 +13,36 @@ local config = {
     registries = {}
 }
 
-for _, file in ipairs(fs.list(REGISTRIES_PATH)) do
-    local path = fs.combine(REGISTRIES_PATH, file)
-    local registry = dofile(path)
-    local name = filename_without_extension(file)
-    config.registries[name] = registry
+local function add_registry(url)
+    if url == nil or url == "" then
+        error("No registry URL specified.")
+    end
+
+    local content = http.get(url)
+
+    if not content then 
+        error("Failed to download registry from " .. url) 
+    end
+
+    if content.getResponseCode() ~= 200 then
+        error("Failed to download registry from " .. url .. " (response code " .. content.getResponseCode() .. ")")
+    end
+    
+    local registryCode = content.readAll()
+    content.close()
+
+    local registry = assert(loadstring(registryCode))()
+    if not registry.name then registry.name = filename_without_extension(url) end
+
+    config.registries[registry.name] = registry
+    print("Registry added: " .. registry.name)
+end
+
+if fs.exists(REGISTRIES_PATH) then
+    for _, file in ipairs(fs.list(REGISTRIES_PATH)) do
+        local path = fs.combine(REGISTRIES_PATH, file)
+        add_registry("file://" .. path)
+    end
 end
 
 if fs.exists(CONFIG_FILE) then
@@ -47,7 +68,6 @@ local function parse_format(format)
         return "([^/]+)"
     end)
 
-    pattern = pattern .. "$"
     return pattern, vars
 end
 
@@ -55,9 +75,7 @@ end
 local function match_format(target, format)
     local pattern, vars = parse_format(format)
     local captures = { target:match(pattern) }
-    if #captures == 0 then
-        return nil
-    end
+    if #captures == 0 then return nil end
 
     local result = {}
     for i, varname in ipairs(vars) do
@@ -67,46 +85,20 @@ local function match_format(target, format)
     return result
 end
 
--- Try to match against multiple format patterns
-local function reverse_interpolate(target, formats)
-    for i, format in ipairs(formats) do
-        local result = match_format(target, format)
-        if result then
-            return result, i  -- Also return the index of matched format
-        end
+-- Try to extract arguments from target string against multiple format patterns
+local function extract_args(target, formats)
+    for _, format in ipairs(formats) do
+        local args = match_format(target, format)
+        if args then return args end
     end
-
-    return nil, nil
-end
-
--- Format a URL template with the extracted arguments
-local function format_url(template, args)
-    local result = template
-    for key, value in pairs(args) do
-        result = result:gsub("{" .. key .. "}", value)
-    end
-
-    return result
-end
-
--- Parse target and generate URL
-local function target_to_url(target, targets)
-    for _, target_config in ipairs(targets) do
-        local args = match_format(target, target_config.format)
-        if args then
-            local url = format_url(target_config.api, args)
-            return url, nil, args
-        end
-    end
-
-    return nil, "No matching format found"
+    return nil
 end
 
 local function install_url(registry, inputs)
     local package = registry.load_package(inputs)
     if not package.include then package.include = { } end
     if #package.include == 0 then table.insert(package.include, "%.lua$") end
-    if package.main then table.insert(package.include, package.main) end
+    if package.main then table.insert(package.include, "^" .. package.main .. "$") end
     if not package.exclude then package.exclude = { } end
     package.is_included = function(path)
         if path == nil or path == "" then return false end
@@ -125,6 +117,7 @@ local function install_url(registry, inputs)
     print("Installing package " .. package.package .. " by " .. package.author .. " (version: " .. package.version .. ")")
 
     local pathPrefix = fs.combine("packages", registry.name, package.package .. "@" .. package.author, package.version)
+    print("Installing to " .. pathPrefix .. "...")
     for path, url in registry.list_files(package, inputs) do
         print("Downloading " .. path .. "...")
 
@@ -152,9 +145,6 @@ local function install(package, registry)
         error("No package specified.")
     end
 
-    print("Installing package:")
-    print(package)
-
     if registry then
         if type(registry) == "string" then
             registry = config.registries[registry]
@@ -165,16 +155,16 @@ local function install(package, registry)
             error("Invalid registry specified.")
         end
 
-        local apiUrl, err, inputs = target_to_url(package, registry.targets)
-        if apiUrl then
+        local inputs = extract_args(package, registry.inputs)
+        if inputs then
             install_url(registry, inputs)
         else
             error("No matching format found in registry: " .. registry.name)
         end
     else
         for _, registry in pairs(config.registries) do
-            local apiUrl, err, inputs = target_to_url(package, registry.targets)
-            if apiUrl then
+            local inputs = extract_args(package, registry.inputs)
+            if inputs then
                 install_url(registry, inputs)
                 break
             end
@@ -185,9 +175,12 @@ end
 local function parseCommand(cmd)
     if cmd[1] == "install" then
         install(cmd[2])
+    elseif cmd[1] == "add-registry" then
+        add_registry(cmd[2])
     elseif #cmd == 0 or cmd[1] == "sol" then
         return {
-            install = install
+            install = install,
+            add_registry = add_registry
         }
     else
         error("Unknown command: " .. tostring(cmd[1]))

@@ -1,10 +1,16 @@
-local API = "https://api.github.com/repos/%s/%s/contents"
+local BLOB_API = "https://api.github.com/repos/%s/%s/git/trees/%s?recursive=true"
+local RAW_API = "https://raw.githubusercontent.com/%s/%s/%s/%s"
 
-local function read_file(url)
+local function read(url)
     local content = http.get(url)
-    if not content then error("Failed to read file from " .. url) end
-    local responseCode = content.getResponseCode()
-    if responseCode ~= 200 then error("Failed to read file from " .. url .. " (response code " .. responseCode .. ")") end
+    if not content then
+        error("Failed to read file from " .. url)
+    end
+
+    if content.getResponseCode() ~= 200 then
+        error("Failed to read file from " .. url .. " (response code " .. content.getResponseCode() .. ")")
+    end
+
     local data = content.readAll()
     content.close()
     return data
@@ -17,14 +23,14 @@ local function load_package(inputs)
         version = "unknown"
     }
 
-    local url = string.format(API, inputs.owner, inputs.name) .. "/package.json"
-    if inputs.ref then url = url .. "?ref=" .. inputs.ref end
+    local url = string.format(RAW_API, inputs.owner, inputs.name, inputs.ref or "main", "package.json")
+    print(url)
 
-    local success, metadata = pcall(read_file, url)
+    local success, metadata = pcall(read, url)
     if not success then return result end
     metadata = textutils.unserialiseJSON(metadata)
 
-    local success, packageData = pcall(read_file, metadata.download_url)
+    local success, packageData = pcall(read, metadata.download_url)
     if not success then return result end
     packageData = textutils.unserialiseJSON(packageData)
 
@@ -36,49 +42,21 @@ local function load_package(inputs)
 end
 
 local function list_files(package, inputs)
-    local url = string.format(API, inputs.owner, inputs.name)
-    if inputs.ref then url = url .. "?ref=" .. inputs.ref end
+    local url = string.format(BLOB_API, inputs.owner, inputs.name, inputs.ref or "main")
+    local tree = textutils.unserialiseJSON(read(url)).tree
 
-    local tree = read_file(url)
-    tree = textutils.unserialiseJSON(tree)
-
+    local output = { }
     local function download(entry)
+        if entry.type ~= "blob" then return end
         if not package.is_included(entry.path) then return end
-
-        local co = coroutine.create(function()
-            if entry.type == "dir" then
-                local dir = read_file(entry.url)
-                dir = textutils.unserialiseJSON(dir)
-                for _, subentry in pairs(dir) do 
-                    for path, url in download(subentry) do
-                        coroutine.yield(path, url)
-                    end
-                end
-            elseif entry.type == "file" then
-                coroutine.yield(entry.path, entry.download_url)
-            end
-        end)
-
-        return function()
-            local success, path, url = coroutine.resume(co)
-            if not success then error("Error downloading file: " .. path) end
-            return path, url
-        end
+        output[entry.path] = string.format(RAW_API, inputs.owner, inputs.name, inputs.ref or "main", entry.path)
     end
 
-    local co = coroutine.create(function()
-        for _, entry in pairs(tree) do
-            for path, url in download(entry) do
-                coroutine.yield(path, url)
-            end
-        end
-    end)
-
-    return function()
-        local success, path, url = coroutine.resume(co)
-        if not success then error("Error listing files: " .. path) end
-        return path, url
+    for _, entry in pairs(tree) do
+        download(entry)
     end
+
+    return pairs(output)
 end
 
 return {
