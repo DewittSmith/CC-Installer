@@ -1,24 +1,40 @@
+local REGISTRIES_PATH = "registries"
+
 local CONFIG_FILE = "sol.config"
 local HEADERS = {
     ["User-Agent"] = "Sol-Package-Manager"
 }
 
-local config = {
-    registries = {
-        ["github"] = {
-            targets = {
-                {
-                    api = "https://api.github.com/repos/{owner}/{name}/contents",
-                    format = "github.com/{owner}/{name}"
-                }
-            },
-            headers = {}
-        }
-    }
-}
+local function filename_without_extension(path)
+    return path:match("([^/]+)%.%w+$") or path
+end
 
 if not http.checkURL("https://www.google.com/") then
     error("HTTP client not available. Please enable it in the ComputerCraft settings.")
+end
+
+local config = {
+    registries = {}
+}
+
+for _, file in ipairs(fs.list(REGISTRIES_PATH)) do
+    local path = fs.combine(REGISTRIES_PATH, file)
+    local registry = dofile(path)
+    local name = filename_without_extension(file)
+    config.registries[name] = registry
+end
+
+if fs.exists(CONFIG_FILE) then
+    local file = fs.open(CONFIG_FILE, "r")
+    local localConfig = file.readAll()
+    file.close()
+
+    localConfig = textutils.unserialise(localConfig)
+    error("Local config loading not yet implemented.")
+end
+
+for name, registry in pairs(config.registries) do
+    registry.name = name
 end
 
 -- Convert a format pattern into a Lua pattern and capture variable names
@@ -86,104 +102,82 @@ local function target_to_url(target, targets)
     return nil, "No matching format found"
 end
 
-if fs.exists(CONFIG_FILE) then
-    local file = fs.open(CONFIG_FILE, "r")
-    local localConfig = file.readAll()
-    file.close()
+local function install_url(registry, inputs)
+    local package = registry.load_package(inputs)
+    if not package.include then package.include = { } end
+    if #package.include == 0 then table.insert(package.include, "%.lua$") end
+    if package.main then table.insert(package.include, package.main) end
+    if not package.exclude then package.exclude = { } end
+    package.is_included = function(path)
+        if path == nil or path == "" then return false end
 
-    localConfig = textutils.unserialise(localConfig)
-    error("Local config loading not yet implemented.")
+        for _, pattern in ipairs(package.include or {}) do
+            if not path:match(pattern) then return false end
+        end
+
+        for _, pattern in ipairs(package.exclude or {}) do
+            if path:match(pattern) then return false end
+        end
+
+        return true
+    end
+
+    print("Installing package " .. package.package .. " by " .. package.author .. " (version: " .. package.version .. ")")
+
+    local pathPrefix = fs.combine("packages", registry.name, package.package .. "@" .. package.author, package.version)
+    for path, url in registry.list_files(package, inputs) do
+        print("Downloading " .. path .. "...")
+
+        local request = http.get(url)
+        if not request then 
+            error("Failed to download file from " .. url) 
+        end
+
+        if request.getResponseCode() ~= 200 then
+            error("Failed to download file from " .. url .. " (response code " .. request.getResponseCode() .. ")")
+        end
+
+        local content = request.readAll()
+        request.close()        
+
+        local fullPath = fs.combine(pathPrefix, path)
+        local file = fs.open(fullPath, "w")
+        file.write(content)
+        file.close()
+    end
 end
 
-local function read_file(headers, url)
-    local content = http.get({ url = url, headers = headers })
-    if not content then error("Failed to download file from " .. url) end
-    local data = content.readAll()
-    content.close()
-    return data
-end
-
-local function install_url(registry, package, url)
-    local headers = HEADERS
-    for k, v in pairs(registry.headers or {}) do
-        headers[k] = v
+local function install(package, registry)
+    if package == nil or package == "" then
+        error("No package specified.")
     end
-
-    local request = http.get({ url = url, headers = headers })
-    if not request then error("Failed to connect to registry: " .. name) end
-    local responseCode = request.getResponseCode()
-    if responseCode ~= 200 then error("Registry " .. name .. " returned response code: " .. responseCode) end
-
-    local response = request.readAll()
-    request.close()
-    response = textutils.unserialiseJSON(response)
-    local packageData = { prefix = fs.combine("packages", package.name) }
-    for _, value in pairs(response) do
-        if value.type == "file" and value.name == "package.json" then
-            packageData = textutils.unserialiseJSON(read_file(headers, value.download_url))
-            break
-        end
-    end
-
-    if not packageData.version then packageData.version = "latest" end
-    packageData.prefix = fs.combine(packageData.prefix, packageData.version)
-
-    local include, exclude = {}, {}
-    if packageData.main then
-        table.insert(include, "^" .. packageData.main .. "$")
-    end
-
-    if packageData.include then
-        for _, pattern in ipairs(packageData.include) do
-            table.insert(include, pattern)
-        end
-    end
-
-    if packageData.exclude then
-        for _, pattern in ipairs(packageData.exclude) do
-            table.insert(exclude, pattern)
-        end
-    end
-
-    if #include == 0 then
-        table.insert(include, "%.lua$")
-    end
-
-    local function download(entry)
-        if entry.type == "dir" then
-            local dir = textutils.unserialiseJSON(read_file(headers, entry.url))
-            for _, subentry in pairs(dir) do download(subentry) end
-        elseif entry.type == "file" then
-            for _, pattern in ipairs(include) do
-                if not entry.path:match(pattern) then return end
-            end
-
-            for _, pattern in ipairs(exclude) do
-                if entry.path:match(pattern) then return end
-            end
-
-            print("Downloading " .. entry.path)
-            local content = read_file(headers, entry.download_url)
-            local filePath = fs.combine(packageData.prefix, entry.path)
-            local file = fs.open(filePath, "w")
-            file.write(content)
-            file.close()
-        end
-    end
-
-    for _, entry in pairs(response) do download(entry) end
-end
-
-local function install(package)
-    if package == nil then error("No package specified.") end
 
     print("Installing package:")
     print(package)
-    for name, registry in pairs(config.registries) do
-        local apiUrl, err, p = target_to_url(package, registry.targets)
+
+    if registry then
+        if type(registry) == "string" then
+            registry = config.registries[registry]
+            if not registry then
+                error("Registry not found: " .. tostring(registry))
+            end
+        elseif type(registry) ~= "table" then
+            error("Invalid registry specified.")
+        end
+
+        local apiUrl, err, inputs = target_to_url(package, registry.targets)
         if apiUrl then
-            install_url(registry, p, apiUrl)
-            break
+            install_url(registry, inputs)
+        else
+            error("No matching format found in registry: " .. registry.name)
+        end
+    else
+        for _, registry in pairs(config.registries) do
+            local apiUrl, err, inputs = target_to_url(package, registry.targets)
+            if apiUrl then
+                install_url(registry, inputs)
+                break
+            end
         end
     end
 end
@@ -191,7 +185,7 @@ end
 local function parseCommand(cmd)
     if cmd[1] == "install" then
         install(cmd[2])
-    elseif cmd[1] == "sol" then
+    elseif #cmd == 0 or cmd[1] == "sol" then
         return {
             install = install
         }
