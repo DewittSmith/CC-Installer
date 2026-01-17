@@ -1,5 +1,3 @@
-local shell = shell or require("shell")
-
 local REGISTRIES_PATH = "registries"
 local CONFIG_FILE = "sol.config"
 
