@@ -100,13 +100,14 @@ local function install_url(registry, inputs)
     if package.main then table.insert(package.include, "^" .. package.main .. "$") end
     package.is_included = function(path)
         if path == nil or path == "" then return false end
+        print("Checking inclusion for path: " .. path)
 
-        for _, pattern in ipairs(package.include or {}) do
-            if not path:match(pattern) then return false end
+        for _, pattern in ipairs(package.include) do
+            if not path:match(pattern) then print("Excluding " .. path .. " due to include pattern: " .. pattern) return false end
         end
 
-        for _, pattern in ipairs(package.exclude or {}) do
-            if path:match(pattern) then return false end
+        for _, pattern in ipairs(package.exclude) do
+            if path:match(pattern) then print("Excluding " .. path .. " due to exclude pattern: " .. pattern) return false end
         end
 
         return true

@@ -44,7 +44,6 @@ local function list_files(package, inputs)
 
     local output = { }
     local function download(entry)
-        print(entry.path)
         if entry.type ~= "blob" then return end
         if not package.is_included(entry.path) then return end
         output[entry.path] = string.format(RAW_API, inputs.owner, inputs.name, inputs.ref or "main", entry.path)
