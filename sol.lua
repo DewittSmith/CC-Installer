@@ -220,15 +220,17 @@ local function parseCommand(cmd)
         install(cmd[2])
     elseif cmd[1] == "registry" and cmd[2] == "add" then
         add_registry(cmd[3])
-    elseif #cmd == 0 or cmd[1] == "sol" then
-        return {
-            install = install,
-            add_registry = add_registry
-        }
     else
         printError("Unknown command: " .. tostring(cmd[1]))
-        return
     end
 end
 
-return parseCommand({ ... })
+local args = { ... }
+if #args == 0 or args[1] == "sol" then
+    return {
+        install = install,
+        add_registry = add_registry
+    }
+else
+    return parseCommand(args)
+end
