@@ -113,7 +113,6 @@ local function install_package(registry, inputs)
 
     for k, v in pairs(packageData) do package[k] = v end
     if #package.include == 0 then table.insert(package.include, "%.lua$") end
-    if package.main then table.insert(package.include, "^" .. package.main .. "$") end
 
     package.is_included = function(path)
         if path == nil or path == "" then return false end
@@ -136,7 +135,23 @@ local function install_package(registry, inputs)
         return isIncluded
     end
 
-    local pathPrefix = fs.combine("packages", package.package .. "+" .. package.author ..  "@" .. registry.name , package.version)
+    local packageName = package.package .. "+" .. package.author ..  "@" .. registry.name
+    local packagePath = fs.combine("packages", packageName)
+    local pathPrefix = fs.combine(packagePath, package.version)
+
+    if fs.exists(pathPrefix) then
+        print("Package " .. packageName .. " is already installed, version(s):")
+        for _, v in ipairs(fs.list(packagePath)) do print(" - " .. v) end
+
+        print()
+        print("Download anyway? (y/n, default n):")
+        local answer = read()
+        if answer ~= "y" and answer ~= "Y" then
+            print("Installation cancelled.")
+            return
+        end
+    end
+
     print("Installing to " .. pathPrefix .. "...")
     for path, url in registry.list_files(package, inputs) do
         print("Downloading " .. path .. "...")
@@ -161,15 +176,7 @@ local function install_package(registry, inputs)
         file.close()
     end
 
-    if package.main then
-        print("Add " .. package.package .. " alias? (y/n, default: y)")
-        local answer = read()
-        if answer == "" or answer == "y" or answer == "Y" then
-            local aliasPath = fs.combine(pathPrefix, package.main)
-            shell.setAlias(package.package, aliasPath)
-            print("Added alias for " .. package.package)
-        end
-    end
+    print("Package " .. package.package .. " installed successfully.")
 end
 
 local function install(package, registry)
@@ -211,8 +218,8 @@ end
 local function parseCommand(cmd)
     if cmd[1] == "install" then
         install(cmd[2])
-    elseif cmd[1] == "add-registry" then
-        add_registry(cmd[2])
+    elseif cmd[1] == "registry" and cmd[2] == "add" then
+        add_registry(cmd[3])
     elseif #cmd == 0 or cmd[1] == "sol" then
         return {
             install = install,

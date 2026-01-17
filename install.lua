@@ -9,12 +9,6 @@ local function read_file(url)
     return content
 end
 
-local oldRequire = _G.require
-local oldShell = _G.shell
-
-_G.require = require
-_G.shell = shell
-
 print("Loading sol package manager...")
 local sol = read_file(SOL_URL)
 sol = assert(loadstring(sol))()
@@ -23,6 +17,3 @@ print("Loading github registry...")
 sol.add_registry(GH_REGISTRY_URL)
 
 sol.install("https://github.com/DewittSmith/sol", registry)
-
-_G.require = oldRequire
-_G.shell = oldShell
