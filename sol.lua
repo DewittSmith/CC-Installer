@@ -112,17 +112,23 @@ local function install_url(registry, inputs)
 
     package.is_included = function(path)
         if path == nil or path == "" then return false end
-        print("Checking inclusion for path: " .. path)
 
+        local isIncluded = false
         for _, pattern in ipairs(package.include) do
-            if not path:match(pattern) then print("Excluding " .. path .. " due to include pattern: " .. pattern) return false end
+            if path:match(pattern) then
+                isIncluded = true
+                break
+            end
         end
 
         for _, pattern in ipairs(package.exclude) do
-            if path:match(pattern) then print("Excluding " .. path .. " due to exclude pattern: " .. pattern) return false end
+            if path:match(pattern) then
+                isIncluded = false
+                break
+            end
         end
 
-        return true
+        return isIncluded
     end
 
     local pathPrefix = fs.combine("packages", package.package .. "+" .. package.author ..  "@" .. registry.name , package.version)
