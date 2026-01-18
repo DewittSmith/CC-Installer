@@ -1,5 +1,4 @@
 local REGISTRIES_PATH = "registries"
-local CONFIG_FILE = "sol.config"
 
 local function filename_without_extension(path)
     return path:match("([^/]+)%.%w+$") or path
@@ -47,16 +46,6 @@ if fs.exists(REGISTRIES_PATH) then
         local path = fs.combine(REGISTRIES_PATH, file)
         add_registry("file://" .. path)
     end
-end
-
-if fs.exists(CONFIG_FILE) then
-    local file = fs.open(CONFIG_FILE, "r")
-    local localConfig = file.readAll()
-    file.close()
-
-    localConfig = textutils.unserialise(localConfig)
-    printError("Local config loading not yet implemented.")
-    return
 end
 
 for name, registry in pairs(config.registries) do
@@ -189,7 +178,7 @@ local function install_package(registry, inputs)
 
         local startupPath = fs.combine("startup", packageName .. "_onload.lua")
         local startup = fs.open(startupPath, "w")
-        startup.write("shell.run(\"" .. fs.combine(pathPrefix, package.hooks.onload) .. "\", \"" .. packageName .. "\", \"" .. pathPrefix .. "\")")
+        startup.write("shell.run(\"/" .. fs.combine(pathPrefix, package.hooks.onload) .. "\", \"" .. packageName .. "\", \"" .. pathPrefix .. "\")")
         startup.close()
 
         shell.run(startupPath)
