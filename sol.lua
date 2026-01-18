@@ -137,7 +137,7 @@ local function install_package(registry, inputs)
     end
 
     local packageName = package.package .. "+" .. package.author ..  "@" .. registry.name
-    local packagePath = fs.combine("packages", packageName)
+    local packagePath = fs.combine("/packages", packageName)
     local pathPrefix = fs.combine(packagePath, package.version)
 
     if fs.exists(pathPrefix) then

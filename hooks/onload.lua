@@ -1,7 +1,9 @@
 local _, installPath = ...
 
-if not string.find(package.path, installPath, 1, true) then
-    package.path = package.path .. ";" .. fs.combine(installPath, "?.lua")
+local path = shell.path()
+if not string.find(path, installPath, 1, true) then
+    shell.setPath(path .. ":" .. installPath)
+    print("Added sol to shell path.")
 end
 
 if not shell.aliases()["sol"] then
