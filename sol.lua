@@ -224,7 +224,19 @@ end
 
 local function uninstall_package(pkg)
     print("Uninstalling package " .. pkg.fullname .. "...")
-    if fs.exists(pkg.fullpath) then fs.delete(pkg.path) end
+
+    if fs.exists(pkg.fullpath) then 
+        fs.delete(pkg.path)
+
+        for _, file in ipairs(fs.list(STARTUP_PATH)) do
+            if file:match("^" .. pkg.fullname) then
+                fs.delete(fs.combine_abs(STARTUP_PATH, file))
+            end
+        end
+
+        sol.loadorder.remove(pkg.fullname)
+    end
+
     print("Package " .. pkg.fullname .. " uninstalled successfully.")
 end
 

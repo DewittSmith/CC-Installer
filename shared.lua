@@ -32,6 +32,23 @@ end
 
 local cachedPackages = {}
 
+local function popfn()
+    local result = {}
+    for k, v in pairs(order) do
+        if type(v) == "function" then
+            result[k] = v
+            order[k] = nil
+        end
+    end
+    return result
+end
+
+local function pushfn(fns)
+    for k, v in pairs(fns) do
+        order[k] = v
+    end
+end
+
 function order.insert(modname, installPath)
     table.insert(order, installPath)
     order[modname] = #order
@@ -39,14 +56,32 @@ function order.insert(modname, installPath)
     order[modname:match("^(.+)@")] = #order
 
     -- Functions are not serializable, so we temporarily remove it
-    local oldInsert = order.insert
-    order.insert = nil
+    local fns = popfn()
 
     local orderFile = fs.open(orderPath, "w")
     orderFile.write(textutils.serialise(order))
     orderFile.close()
 
-    order.insert = oldInsert
+    pushfn(fns)
+end
+
+function order.remove(modname)
+    local index = order[modname]
+    if not index then return end
+
+    table.remove(order, index)
+    order[modname] = nil
+    order[modname:match("^(.+)%+")] = nil
+    order[modname:match("^(.+)@")] = nil
+
+    -- Functions are not serializable, so we temporarily remove it
+    local fns = popfn()
+
+    local orderFile = fs.open(orderPath, "w")
+    orderFile.write(textutils.serialise(order))
+    orderFile.close()
+
+    pushfn(fns)
 end
 
 _G.sol = _G.sol or {}
