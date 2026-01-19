@@ -50,6 +50,8 @@ local function pushfn(fns)
 end
 
 function order.insert(modname, installPath)
+    if order[modname] then return end
+
     table.insert(order, installPath)
     order[modname] = #order
     order[modname:match("^(.+)%+")] = #order
