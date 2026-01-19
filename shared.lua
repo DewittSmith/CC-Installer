@@ -1,5 +1,5 @@
 STARTUP_PATH = "/startup"
-REGISTRIES_PATH = "/registries"
+REGISTRIES_PATH = "registries"
 PACKAGES_PATH = "/packages"
 
 function fs.combine_abs(...)
