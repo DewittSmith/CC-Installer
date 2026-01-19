@@ -1,5 +1,4 @@
 STARTUP_PATH = "/startup"
-REGISTRIES_PATH = "registries"
 PACKAGES_PATH = "/packages"
 
 function fs.combine_abs(...)
@@ -17,6 +16,7 @@ if not fs.exists(orderPath) then
     orderFile.close()
 end
 
+
 function string.trimext(path)
     return path:match("([^/]+)%.%w+$") or path
 end
@@ -25,6 +25,10 @@ local orderFile = fs.open(orderPath, "r")
 local order = textutils.unserialise(orderFile.readAll())
 if type(order) ~= "table" then order = {} end
 orderFile.close()
+
+if order["sol"] then REGISTRIES_PATH = fs.combine_abs(order[order["sol"]], "registries")
+else REGISTRIES_PATH = "registries"
+end
 
 local cachedPackages = {}
 

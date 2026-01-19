@@ -274,15 +274,17 @@ local function parseOps(fn, ...)
     local parser = opsParsers[fn]
     if not parser then return ops end
 
-    for i = 1, #args do
+    local i = 1
+    while i <= #args do
         local arg = args[i]
         local key = parser[arg]
         if key ~= nil then
             local argc, value = parser[key].parse(select(i + 1, ...))
             ops[key] = value
-            i = i + argc
+            i = i + argc + 1
         else
             printError("Unknown option: " .. tostring(arg))
+            i = i + 1
         end
     end
 
