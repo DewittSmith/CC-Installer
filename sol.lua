@@ -46,7 +46,7 @@ end
 if fs.exists(REGISTRIES_PATH) then
     for _, file in ipairs(fs.list(REGISTRIES_PATH)) do
         local path = fs.combine_abs(REGISTRIES_PATH, file)
-        add_registry("file://" .. path, {})
+        if fs.isDir(path) then add_registry("file://" .. path, {}) end
     end
 end
 
