@@ -4,6 +4,6 @@
     "author": "DewittSmith",
     "include": ["sol.lua", "shared.lua", "^registries/.+%.lua$"],
     "hooks": {
-        "onload": "hooks/onload.lua"
+        "onstartup": "hooks/onstartup.lua"
     }
 }

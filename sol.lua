@@ -40,14 +40,14 @@ local function add_registry(url, ops)
     if not registry.name then registry.name = url:trimext() end
 
     config.registries[registry.name] = registry
-    print("Registry added: " .. registry.name)
+    if not ops.silent then print("Registry added: " .. registry.name) end
 end
 
 if fs.exists(REGISTRIES_PATH) then
     for _, file in ipairs(fs.list(REGISTRIES_PATH)) do
         if file:sub(-4) == ".lua" then
             local path = fs.combine(REGISTRIES_PATH, file)
-            add_registry("file://" .. path, {})
+            add_registry("file://" .. path, { silent = true })
         end
     end
 end
@@ -204,15 +204,15 @@ local function install_package(registry, pkg, noprompt)
 
     for path, url in registry.list_files(pkg._inputs, pkg) do download(url, path) end
 
-    if pkg.hooks.onload then
-        local hook = registry.load_file(pkg._inputs, pkg.hooks.onload)
-        write_file(hook, fs.combine_abs(pkg.fullpath, pkg.hooks.onload))
+    if pkg.hooks.onstartup then
+        local hook = registry.load_file(pkg._inputs, pkg.hooks.onstartup)
+        write_file(hook, fs.combine_abs(pkg.fullpath, pkg.hooks.onstartup))
 
-        print("Running onload hook...")
+        print("Running onstartup hook...")
 
-        local startupPath = fs.combine_abs(STARTUP_PATH, pkg.fullname .. "_onload.lua")
+        local startupPath = fs.combine_abs(STARTUP_PATH, pkg.fullname .. "_onstartup.lua")
         local startup = fs.open(startupPath, "w")
-        startup.write("shell.run(\"" .. fs.combine_abs(pkg.fullpath, pkg.hooks.onload) .. "\", \"" .. pkg.fullname .. "\", \"" .. pkg.fullpath .. "\")")
+        startup.write("shell.run(\"" .. fs.combine_abs(pkg.fullpath, pkg.hooks.onstartup) .. "\", \"" .. pkg.fullname .. "\", \"" .. pkg.fullpath .. "\")")
         startup.close()
 
         shell.run(startupPath)
@@ -224,7 +224,7 @@ end
 
 local function uninstall_package(pkg)
     print("Uninstalling package " .. pkg.fullname .. "...")
-    if fs.exists(pkg.fullpath) then fs.delete(pkg.fullpath) end
+    if fs.exists(pkg.fullpath) then fs.delete(pkg.path) end
     print("Package " .. pkg.fullname .. " uninstalled successfully.")
 end
 
@@ -266,7 +266,12 @@ local opsParsers = {
         registry = { parse = function(...) return 1, ... end },
         ["-r"] = "registry",
         ["--registry"] = "registry",
-    }
+    },
+    [add_registry] = {
+        silent = { parse = function(...) return 0, true end },
+        ["-s"] = "silent",
+        ["--silent"] = "silent",
+    },
 }
 
 local function parseOps(fn, ...)
