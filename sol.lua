@@ -485,4 +485,14 @@ local function parseCommand(cmd)
     end
 end
 
-parseCommand({ ... })
+local args = { ... }
+if #args == 0 or args[1] == "sol" then
+    return {
+        install = install,
+        uninstall = uninstall,
+        add_registry = add_registry,
+        require = api.require,
+    }
+else
+    parseCommand(args)
+end
