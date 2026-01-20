@@ -1,5 +1,6 @@
 local STARTUP_PATH = "/startup"
 local PACKAGES_PATH = "/packages"
+local REGISTRIES_PATH = "registries"
 
 local api = {}
 do
@@ -27,9 +28,7 @@ do
     if type(order) ~= "table" then order = {} end
     orderFile.close()
 
-    if order["sol"] then REGISTRIES_PATH = fs.combine_abs(order[order["sol"]], "registries")
-    else REGISTRIES_PATH = "registries"
-    end
+    if order["sol"] then REGISTRIES_PATH = fs.combine_abs(order[order["sol"]], REGISTRIES_PATH) end
 
     local cachedPackages = {}
 
@@ -171,7 +170,9 @@ local config = {
     registries = {}
 }
 
-local function add_registry(url, ops)
+function require(modname) return api.require(modname) end
+
+function add_registry(url, ops)
     ops = ops or {}
 
     if url == nil or url == "" then printError("No registry URL specified.") return end
@@ -402,7 +403,7 @@ local function uninstall_package(pkg)
     print("Package " .. pkg.fullname .. " uninstalled successfully.")
 end
 
-local function install(package, ops)
+function install(package, ops)
     ops = ops or {}
 
     local success, registry, pkg = pcall(extract_pkg, package, ops.registry)
@@ -417,7 +418,7 @@ local function install(package, ops)
     end
 end
 
-local function uninstall(package, ops)
+function uninstall(package, ops)
     ops = ops or {}
 
     local success, registry, pkg = pcall(extract_pkg, package, ops.registry)
@@ -484,14 +485,4 @@ local function parseCommand(cmd)
     end
 end
 
-local args = { ... }
-if #args == 0 or args[1] == "sol" then
-    return {
-        install = install,
-        uninstall = uninstall,
-        add_registry = add_registry,
-        require = api.require,
-    }
-else
-    return parseCommand(args)
-end
+parseCommand({ ... })
