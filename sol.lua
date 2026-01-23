@@ -25,8 +25,8 @@ do
 
     local orderFile = fs.open(orderPath, "r")
     local order = textutils.unserialise(orderFile.readAll())
-    if type(order) ~= "table" then order = {} end
     orderFile.close()
+    if type(order) ~= "table" then order = {} end
 
     if order["sol"] then REGISTRIES_PATH = fs.combine_abs(order[order["sol"]], REGISTRIES_PATH) end
 
@@ -96,14 +96,7 @@ do
         if cachedPackages[modname] then return cachedPackages[modname] end
 
         local ip = order[modname]
-        if not ip then 
-            local fns = popfn()
-            print(textutils.serialise(order))
-            pushfn(fns)
-
-            error("Module '" .. modname .. "' not found") 
-        end
-
+        if not ip then error("Module '" .. modname .. "' not found") end
         ip = order[ip]
 
         local mod = {}

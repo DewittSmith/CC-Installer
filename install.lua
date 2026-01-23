@@ -26,3 +26,4 @@ end)
 if not success then printError("Error loading sol: " .. err) end
 
 _G.shell, _G.require = oldShell, oldRequire
+shell.run("reboot")
