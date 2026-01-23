@@ -102,8 +102,9 @@ do
         local mod = {}
         cachedPackages[modname] = mod
 
+        if not package then package = {} end
         local oldPath = package.path
-        package.path = oldPath .. ";" .. fs.combine_abs(ip, "?.lua")
+        package.path = (oldPath and (oldPath .. ";") or "") .. fs.combine_abs(ip, "?.lua")
 
         local success, err = pcall(function()
             local function loadFile(folder, prefix, p)
