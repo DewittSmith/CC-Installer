@@ -118,7 +118,7 @@ do
                     local filename = p:trimext()
                     local requirePath = prefix and (prefix .. "." .. filename) or filename
 
-                    local mod = require(requirePath)
+                    local mod = _G.require(requirePath)
                     if type(mod) == "table" then
                         if filename == modname or filename == "init" then
                             for k, v in pairs(mod) do
