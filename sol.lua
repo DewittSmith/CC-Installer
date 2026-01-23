@@ -90,8 +90,7 @@ do
         pushfn(fns)
     end
 
-    api.loadorder = order
-    api.require = function(modname)
+    local function solRequire(modname)
         if not modname or modname == "" then error("No modname provided") end
         if cachedPackages[modname] then return cachedPackages[modname] end
 
@@ -160,6 +159,9 @@ do
         package.path = oldPath
         return mod
     end
+
+    api.loadorder = order
+    api.require = solRequire
 end
 
 if not http.checkURL("https://www.google.com/") then
