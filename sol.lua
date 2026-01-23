@@ -63,7 +63,6 @@ do
 
         -- Functions are not serializable, so we temporarily remove it
         local fns = popfn()
-        print(textutils.serialise(order))
 
         local orderFile = fs.open(orderPath, "w")
         orderFile.write(textutils.serialise(order))
@@ -97,7 +96,14 @@ do
         if cachedPackages[modname] then return cachedPackages[modname] end
 
         local ip = order[modname]
-        if not ip then error("Module '" .. modname .. "' not found") end
+        if not ip then 
+            local fns = popfn()
+            print(textutils.serialise(order))
+            pushfn(fns)
+
+            error("Module '" .. modname .. "' not found") 
+        end
+
         ip = order[ip]
 
         local mod = {}
