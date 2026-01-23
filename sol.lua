@@ -2,7 +2,7 @@ local STARTUP_PATH = "/startup"
 local PACKAGES_PATH = "/packages"
 local REGISTRIES_PATH = "registries"
 
-local function error_handler(err) return debug.traceback(err) end
+local function error_handler(err) return debug.traceback(err, 3) end
 
 local api = {}
 do
